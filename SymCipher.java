@@ -35,10 +35,30 @@ public class SymCipher {
 		return finalEnc;
 	}
 	
-	public static byte[] AESDecrypt(byte[] enc, byte[] key, byte[] iv) {
+	public static byte[] AESDecrypt(byte[] enc, byte[] key, byte[] iv) throws Exception {
 		
+		if(enc == null) throw new Exception("Encrypted MSG is null");
+		if(key.length != 16 || iv.length != 16) throw new Exception("Invalid length of key or iv");
 		
-		return "test".getBytes();
+		byte[] plain = new byte[enc.length];
+		
+		for(int i = 0; i < enc.length; i += 16) {
+			
+			byte[] tmp = new byte[16];
+			
+			System.arraycopy(enc, i, tmp, 0, tmp.length);
+			
+			byte[] tmpiv = tmp;
+			
+			byte[] decBlock = blockDecrypt(tmp, key, iv);
+			iv = tmpiv;
+			
+			System.arraycopy(decBlock, 0, plain, i, decBlock.length);
+		}
+
+		byte[] unpadPlain = unpadding(plain);
+		
+		return unpadPlain;
 	}
 	
 	private static byte[] padding(byte[] plain) {
@@ -57,6 +77,16 @@ public class SymCipher {
 		return padPlain;
 	}
 	
+	private static byte[] unpadding(byte[] plain) {
+		
+		int unpadLen = plain[plain.length-1];
+		byte[] unpadPlain = new byte[plain.length - unpadLen];
+		
+		System.arraycopy(plain, 0, unpadPlain, 0, unpadPlain.length);
+		
+		return unpadPlain;
+	}
+	
 	private static byte[] blockCipher(byte[] block, byte[] key, byte[] iv) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
 		
 		byte[] tmp = new byte[16];
@@ -73,5 +103,21 @@ public class SymCipher {
 		byte[] encBlock = cipher.doFinal(tmp);
 		
 		return encBlock;
+	}
+	
+	private static byte[] blockDecrypt(byte[] block, byte[] key, byte[] iv) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+
+		SecretKey secretKey = new SecretKeySpec(key, "AES");
+		
+		Cipher cipher = Cipher.getInstance("AES/ECB/NoPadding");
+		cipher.init(Cipher.DECRYPT_MODE, secretKey);
+		
+		byte[] tmp = cipher.doFinal(block), decBlock = new byte[16];
+		int i = 0;
+		
+		for(byte b : tmp)
+			decBlock[i] = (byte) (b ^ iv[i++]);
+
+		return decBlock;
 	}
 }
